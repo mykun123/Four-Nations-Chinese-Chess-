@@ -61,7 +61,7 @@ pip install aiohttp
 ### 2. Start the server
 
 ```bash
-cd xiangqi_game
+cd Four-Nations-Chinese-Chess-
 python server.py
 ```
 
