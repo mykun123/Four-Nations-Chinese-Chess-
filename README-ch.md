@@ -61,7 +61,7 @@ pip install aiohttp
 ### 2. 启动服务器
 
 ```bash
-cd xiangqi_game
+cd Four-Nations-Chinese-Chess-
 python server.py
 ```
 
