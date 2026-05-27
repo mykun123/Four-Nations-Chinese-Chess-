@@ -1,0 +1,482 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #2c1810;
+  color: #e8d5b7;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+#app { width: 100%; max-width: 900px; padding: 20px; }
+
+/* 登录 */
+.page { display: flex; flex-direction: column; align-items: center; }
+.login-box {
+  margin-top: 80px;
+  background: #3d2415;
+  padding: 40px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  min-width: 340px;
+}
+.login-box h1 { font-size: 32px; margin-bottom: 4px; }
+.subtitle { color: #b8956a; margin-bottom: 24px; font-size: 14px; }
+.login-box input {
+  display: block; width: 100%; padding: 12px 16px;
+  font-size: 16px; border: 2px solid #6b4c2a; border-radius: 8px;
+  background: #4a2e1b; color: #e8d5b7; outline: none;
+  margin-bottom: 16px;
+}
+.login-box input:focus { border-color: #c49a6c; }
+.login-box button {
+  width: 100%; padding: 12px; font-size: 16px; font-weight: bold;
+  background: #c49a6c; color: #2c1810; border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s;
+}
+.login-box button:hover { background: #d4aa7c; }
+.error { color: #ff6b6b; font-size: 13px; margin-top: 8px; min-height: 20px; }
+
+/* 大厅 */
+.lobby-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.lobby-header h2 { font-size: 22px; color: #d4aa7c; }
+.user-tag { background: #4a2e1b; padding: 4px 12px; border-radius: 12px; font-size: 13px; }
+.lobby-controls { width: 100%; display: flex; gap: 10px; margin-bottom: 16px; }
+.lobby-controls select {
+  padding: 8px 12px; border-radius: 8px; border: 2px solid #6b4c2a;
+  background: #4a2e1b; color: #e8d5b7; font-size: 14px; flex: 1;
+}
+.lobby-controls button {
+  padding: 8px 24px; border-radius: 8px; border: none;
+  background: #c49a6c; color: #2c1810; font-weight: bold; font-size: 14px; cursor: pointer;
+}
+.lobby-controls button:hover { background: #d4aa7c; }
+
+.room-list { width: 100%; }
+.room-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #3d2415; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+}
+.room-item .room-mode { background: #6b4c2a; padding: 2px 10px; border-radius: 8px; font-size: 12px; }
+.room-item .room-players { color: #b8956a; font-size: 13px; }
+.room-item button {
+  padding: 6px 16px; border-radius: 6px; border: none;
+  background: #4caf50; color: white; font-weight: bold; cursor: pointer;
+}
+.room-item button:hover { background: #5cbf60; }
+.empty-msg { text-align: center; color: #b8956a; padding: 40px 0; }
+
+/* 房间等待 */
+.room-waiting-header {
+  width: 100%; display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+}
+.room-waiting-header h2 { font-size: 20px; color: #d4aa7c; }
+.room-mode-tag {
+  background: #6b4c2a; padding: 2px 10px; border-radius: 8px; font-size: 12px;
+}
+.room-seats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;
+}
+.seat {
+  background: #3d2415; border-radius: 12px; padding: 16px;
+  display: flex; align-items: center; gap: 12px;
+  border: 2px solid transparent; transition: border-color 0.3s;
+}
+.seat.occupied { border-color: #6b4c2a; }
+.seat-color {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+}
+.seat-name {
+  flex: 1; font-size: 14px; font-weight: bold; color: #e8d5b7;
+}
+.seat-ready {
+  font-size: 12px; color: #4caf50;
+}
+.waiting {
+  text-align: center; padding: 20px; color: #d4aa7c;
+  background: #3d2415; border-radius: 12px; margin-top: 16px;
+}
+.spinner {
+  display: inline-block; width: 24px; height: 24px;
+  border: 3px solid #6b4c2a; border-top-color: #d4aa7c;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 游戏 */
+.game-header {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  gap: 8px;
+}
+.header-left { display: flex; align-items: center; gap: 8px; }
+.game-header h3 { color: #d4aa7c; font-size: 18px; white-space: nowrap; }
+.game-info { font-size: 12px; color: #b8956a; white-space: nowrap; }
+.header-center { display: flex; align-items: center; gap: 6px; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.current-turn-text {
+  font-size: 14px; font-weight: bold; color: #d4aa7c;
+  padding: 4px 12px; background: #3d2415; border-radius: 8px;
+  white-space: nowrap; min-width: 100px; text-align: center;
+}
+.current-turn-text.my-turn { color: #4caf50; }
+.turn-timer { font-size: 18px; font-weight: bold; color: #4caf50; min-width: 40px; text-align: center; }
+.turn-timer.urgent { color: #ff6b6b; animation: pulse 0.5s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: 0.4; } }
+.btn-sm { padding: 4px 12px; border-radius: 6px; border: 1px solid #6b4c2a;
+  background: transparent; color: #b8956a; cursor: pointer; font-size: 12px; }
+.btn-end-game { border-color: #8b3a3a; color: #d46a6a; }
+.btn-end-game:hover { background: #8b3a3a; color: #fff; }
+
+.game-area { display: flex; justify-content: center; align-items: center; width: 100%; overflow: hidden; }
+.board-wrap { position: relative; display: inline-block; max-width: 100%; min-width: 0; }
+#board-canvas { border-radius: 8px; display: block; max-width: 100%; height: auto; touch-action: manipulation; }
+#board-canvas:active, #board-canvas:focus { outline: none; }
+
+/* 玩家卡片（头像 + 名字）置于四块非棋盘空白区域正中央 */
+.player-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 5;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+/* 卡片位置由 JS 根据视角旋转动态计算 */
+.card-bl { }
+.card-tl { }
+.card-tr { }
+.card-br { }
+
+.p-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: bold;
+  background: #3d2415;
+  border: 2.5px solid;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.p-name {
+  font-size: 15px; font-weight: bold;
+  white-space: nowrap;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+}
+.p-timer {
+  font-size: 15px; color: #d4aa7c;
+  font-weight: bold;
+  white-space: nowrap;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+  margin-top: 2px;
+}
+
+
+.status-bar {
+  width: 100%; margin-top: 6px; padding: 8px;
+  background: #3d2415; border-radius: 8px; text-align: center;
+  font-size: 14px; font-weight: bold; color: #d4aa7c;
+}
+.board-popup {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(44,24,16,0.95);
+  border: 2px solid #c49a6c;
+  border-radius: 16px;
+  padding: 16px 28px;
+  text-align: center;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.board-popup-tr {
+  position: absolute; top: 8px; right: 8px;
+  transform: none;
+  background: rgba(44,24,16,0.95);
+  border: 2px solid #c49a6c;
+  border-radius: 12px;
+  padding: 10px 18px;
+  text-align: center;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* 结盟面板 */
+.ally-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border-top: 1px solid #6b4c2a;
+  text-align: left;
+}
+.ally-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #d4aa7c;
+  margin-bottom: 4px;
+}
+.ally-hint {
+  font-size: 12px;
+  color: #b8956a;
+  margin-bottom: 12px;
+}
+.ally-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+.ally-player-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: bold;
+}
+.ally-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.ally-btn-invite {
+  background: #c49a6c;
+  color: #2c1810;
+}
+.ally-btn-invite:hover {
+  background: #d4aa7c;
+}
+.ally-btn-accept {
+  background: #4caf50;
+  color: white;
+}
+.ally-btn-accept:hover {
+  background: #5cbf60;
+}
+.ally-btn-decline {
+  background: #666;
+  color: white;
+}
+.ally-btn-decline:hover {
+  background: #888;
+}
+.ally-btn-cancel {
+  background: transparent;
+  color: #b8956a;
+  border: 1px solid #6b4c2a;
+}
+.ally-btn-cancel:hover {
+  background: #4a2e1b;
+}
+.ally-status {
+  font-size: 12px;
+  color: #b8956a;
+}
+.ally-status.allied {
+  color: #4caf50;
+  font-weight: bold;
+}
+.ally-notification {
+  padding: 8px;
+  border-radius: 6px;
+  margin-top: 8px;
+  background: #4a2e1b;
+}
+.ally-error {
+  color: #ff6b6b;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px;
+}
+
+/* 邀请弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: #3d2415;
+  border: 2px solid #c49a6c;
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  min-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.modal-invite-text {
+  font-size: 20px;
+  color: #e8d5b7;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.modal-hint {
+  font-size: 14px;
+  color: #b8956a;
+  margin-bottom: 24px;
+}
+.modal-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+.modal-buttons .ally-btn {
+  padding: 10px 32px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+.ally-btn-invite:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 锦囊选择卡片 */
+.stratagem-card {
+  background: #4a2e1b;
+  border: 2px solid #6b4c2a;
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  width: 200px;
+  text-align: center;
+}
+.stratagem-card:hover {
+  border-color: #c49a6c;
+  background: #5a3e2b;
+}
+.stratagem-card.selected {
+  border-color: #4caf50;
+  background: #3a5e3b;
+}
+.stratagem-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.stratagem-name {
+  font-size: 20px;
+  font-weight: bold;
+  color: #e8d5b7;
+  margin-bottom: 8px;
+}
+.stratagem-desc {
+  font-size: 12px;
+  color: #b8956a;
+  line-height: 1.4;
+}
+
+/* 锦囊图标（玩家卡片下方） */
+.stratagem-icon {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: default;
+  border: 1px solid;
+}
+.stratagem-icon.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.stratagem-icon.clickable:hover {
+  filter: brightness(1.3);
+}
+.stratagem-icon.used {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* AI 标记 & 按钮 */
+.seat-actions {
+  width: 100%;
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.btn-add-ai {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #4a90d9;
+  background: transparent;
+  color: #4a90d9;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.btn-add-ai:hover {
+  background: rgba(74, 144, 217, 0.2);
+}
+.btn-remove-ai {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #ff6b6b;
+  background: transparent;
+  color: #ff6b6b;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.btn-remove-ai:hover {
+  background: rgba(255, 107, 107, 0.2);
+}
+.ai-badge {
+  display: inline-block;
+  background: #4a90d9;
+  color: white;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  font-weight: bold;
+}
+
+/* Start Game Button */
+.room-start-area {
+  width: 100%;
+  text-align: center;
+  margin-top: 16px;
+}
+.btn-start-game {
+  padding: 12px 48px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-start-game:hover {
+  background: #5cbf60;
+}
+
+/* ====== 手机端适配：缩小玩家卡片，防止覆盖棋盘 ====== */
+@media (max-width: 750px) {
+  .p-avatar { width: 28px; height: 28px; font-size: 13px; border-width: 2px; }
+  .p-name { font-size: 11px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+  .p-timer { font-size: 11px; }
+  .player-card { gap: 4px; }
+  .ai-badge { font-size: 8px; padding: 0 4px; }
+}
+@media (max-width: 450px) {
+  .p-avatar { width: 20px; height: 20px; font-size: 10px; border-width: 1.5px; }
+  .p-name { font-size: 9px; max-width: 45px; }
+  .p-timer { font-size: 9px; }
+  .player-card { gap: 2px; }
+  .ai-badge { font-size: 7px; padding: 0 2px; }
+}
