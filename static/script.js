@@ -521,6 +521,8 @@ function handleMessage(msg) {
         const list = document.getElementById("ally-player-list");
         list.innerHTML = `<div class="ally-error">⚠ ${msg.message}</div>`;
         setTimeout(() => renderAllyPanel(), 2000);
+      } else if (document.getElementById("room-waiting").style.display !== "none" && document.getElementById("room-waiting").style.display !== "") {
+        alert("⚠ " + msg.message);
       } else {
         document.getElementById("current-turn-display").textContent = "⚠ " + msg.message;
       }
@@ -663,6 +665,8 @@ function showWaiting(room) {
 
 function renderSeats(room) {
   const seats = room.players || [];
+  const diffNames = {"easy":"简单","normal":"一般","hard":"困难","extreme":"恐怖如斯"};
+  const diffColors = {"easy":"#8BC34A","normal":"#FFC107","hard":"#FF9800","extreme":"#f44336"};
   for (let i = 0; i < 4; i++) {
     const seat = seats.find(function(p) { return p.seat === i; });
     const el = document.getElementById("seat-" + i);
@@ -672,8 +676,10 @@ function renderSeats(room) {
     if (seat) {
       el.className = "seat occupied";
       if (seat.is_ai) {
+        var diffName = diffNames[seat.ai_difficulty] || "";
+        var diffColor = diffColors[seat.ai_difficulty] || "#888";
         nameEl.textContent = seat.name + " 🤖";
-        readyEl.textContent = "已加入";
+        readyEl.innerHTML = '<span style="color:' + diffColor + ';font-size:12px">' + diffName + '</span>';
         if (actionsEl) {
           actionsEl.innerHTML = '<button class="btn-remove-ai" onclick="removeAIPlayer(\'' + seat.id + '\')">移除</button>';
         }
@@ -687,7 +693,14 @@ function renderSeats(room) {
       nameEl.textContent = "等待加入...";
       readyEl.textContent = "";
       if (actionsEl) {
-        actionsEl.innerHTML = '<button class="btn-add-ai" onclick="addAIPlayer(' + i + ')">+ 添加电脑</button>';
+        actionsEl.innerHTML = [
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">',
+          '<button class="btn-add-ai" onclick="addAIPlayer(' + i + ',\'easy\')" style="font-size:11px;padding:4px 8px;background:#4CAF50">简单</button>',
+          '<button class="btn-add-ai" onclick="addAIPlayer(' + i + ',\'normal\')" style="font-size:11px;padding:4px 8px;background:#FF9800">一般</button>',
+          '<button class="btn-add-ai" onclick="addAIPlayer(' + i + ',\'hard\')" style="font-size:11px;padding:4px 8px;background:#e65100">困难</button>',
+          '<button class="btn-add-ai" onclick="addAIPlayer(' + i + ',\'extreme\')" style="font-size:11px;padding:4px 8px;background:#b71c1c">恐怖</button>',
+          '</div>',
+        ].join("");
       }
     }
   }
@@ -698,8 +711,8 @@ function renderSeats(room) {
   }
 }
 
-function addAIPlayer(seatIndex) {
-  ws.send(JSON.stringify({type: "add_ai", user_id: userId, seat_index: seatIndex}));
+function addAIPlayer(seatIndex, difficulty) {
+  ws.send(JSON.stringify({type: "add_ai", user_id: userId, seat_index: seatIndex, difficulty: difficulty || "easy"}));
 }
 
 function removeAIPlayer(aiId) {
