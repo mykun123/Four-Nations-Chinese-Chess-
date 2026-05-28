@@ -710,8 +710,6 @@ def best_move(game, color, depth=5, debug_out=None):
         if not team_alive:
             return None
 
-    best_val = float("-inf")
-    best_list = []
     nxt = _next_player_after(game, color)
     move_scores = []
 
@@ -725,12 +723,19 @@ def best_move(game, color, depth=5, debug_out=None):
 
         move_scores.append((move, val))
 
-        if val > best_val:
-            best_val = val
-            best_list = [move]
-        elif abs(val - best_val) < 5:
-            best_list.append(move)
+    # 绝境求生：必输局面下优先换掉对方高价值子
+    raw_best = max(s for _, s in move_scores) if move_scores else float("-inf")
+    if raw_best < -2000:
+        for i, (move, val) in enumerate(move_scores):
+            fr, fc, tr, tc = move
+            tgt = game.board[tr][tc]
+            if tgt and _is_enemy_of(game, color, tgt["color"]):
+                tv = PIECE_VALUES.get(tgt["type"], 0)
+                val += tv * 0.8  # 换子奖励：吃高价值子优先
+            move_scores[i] = (move, val)
 
+    best_val = max(s for _, s in move_scores) if move_scores else float("-inf")
+    best_list = [m for m, s in move_scores if abs(s - best_val) < 5]
     chosen = random.choice(best_list) if best_list else top_moves[0]
 
     if debug_out is not None:

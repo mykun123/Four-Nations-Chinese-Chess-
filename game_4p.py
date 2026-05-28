@@ -329,19 +329,22 @@ class Game4P:
                         p = self.board[r][c]
                         if p and p["color"] == dead:
                             self.board[r][c] = None
-                # 奖励炮：灭掉一方后，杀手在其底线随机生成一个炮
-                capturer = piece["color"]
-                if dead == RED:
-                    back_candidates = [(18, c) for c in range(19) if not in_blank(18, c) and self.board[18][c] is None]
-                elif dead == BLACK:
-                    back_candidates = [(0, c) for c in range(19) if not in_blank(0, c) and self.board[0][c] is None]
-                elif dead == GREEN:
-                    back_candidates = [(r, 0) for r in range(19) if not in_blank(r, 0) and self.board[r][0] is None]
-                else:  # BLUE
-                    back_candidates = [(r, 18) for r in range(19) if not in_blank(r, 18) and self.board[r][18] is None]
-                if back_candidates:
-                    br, bc = random.choice(back_candidates)
-                    self.board[br][bc] = {"color": capturer, "type": "C"}
+                # 奖励炮：仅自由混战灭人奖励炮（组队模式不奖励）
+                if self.mode not in ("team", "team_stratagem"):
+                    capturer = piece["color"]
+                    if dead == NEUTRAL:
+                        back_candidates = []
+                    elif dead == RED:
+                        back_candidates = [(18, c) for c in range(19) if not in_blank(18, c) and self.board[18][c] is None]
+                    elif dead == BLACK:
+                        back_candidates = [(0, c) for c in range(19) if not in_blank(0, c) and self.board[0][c] is None]
+                    elif dead == GREEN:
+                        back_candidates = [(r, 0) for r in range(19) if not in_blank(r, 0) and self.board[r][0] is None]
+                    else:  # BLUE
+                        back_candidates = [(r, 18) for r in range(19) if not in_blank(r, 18) and self.board[r][18] is None]
+                    if back_candidates:
+                        br, bc = random.choice(back_candidates)
+                        self.board[br][bc] = {"color": capturer, "type": "C"}
             elif not self._has_any_piece(dead):
                 self.alive[dead] = False
 
@@ -564,6 +567,14 @@ class Game4P:
 
     # ---- 帅的安全检测（全方位）----
 
+    def _is_enemy_color(self, color1, color2):
+        """判断 color2 是否是 color1 的敌方（组队模式考虑队友）"""
+        if color1 == color2:
+            return False
+        if self.mode in ("team", "team_stratagem") and self.teams:
+            return not self.is_same_team(color1, color2)
+        return True
+
     def _is_square_attacked(self, r, c, own_color=None):
         """检查位置 (r,c) 是否被任何非中立棋子攻击。
         若 own_color 指定，只检查对手方（用于将军检测）。"""
@@ -577,7 +588,7 @@ class Game4P:
                     nr += dr; nc += dc; continue
                 if piece["color"] == NEUTRAL:
                     break  # 中立单位挡住视线
-                is_foe = own_color is None or piece["color"] != own_color
+                is_foe = own_color is None or self._is_enemy_color(own_color, piece["color"])
                 dist = abs(nr - r) + abs(nc - c)
                 if not found_screen:
                     if dist == 1:
@@ -601,7 +612,7 @@ class Game4P:
             if self.in_bounds(nr, nc):
                 piece = self.board[nr][nc]
                 if piece and piece["color"] != NEUTRAL and piece["type"] == "A":
-                    if own_color is None or piece["color"] != own_color:
+                    if own_color is None or self._is_enemy_color(own_color, piece["color"]):
                         return True  # 士一步斜吃
             nr2, nc2 = r + dr * 2, c + dc * 2
             if self.in_bounds(nr2, nc2):
@@ -609,7 +620,7 @@ class Game4P:
                 if mid is None:  # 象眼没堵
                     piece = self.board[nr2][nc2]
                     if piece and piece["color"] != NEUTRAL and piece["type"] == "B":
-                        if own_color is None or piece["color"] != own_color:
+                        if own_color is None or self._is_enemy_color(own_color, piece["color"]):
                             return True  # 象飞过来
 
         # 3. 马(N)脚：从目标反向查找
@@ -624,7 +635,7 @@ class Game4P:
             if not self.in_bounds(kr, kc): continue
             piece = self.board[kr][kc]
             if piece and piece["color"] != NEUTRAL and piece["type"] == "N":
-                if own_color is None or piece["color"] != own_color:
+                if own_color is None or self._is_enemy_color(own_color, piece["color"]):
                     lr, lc = kr + br, kc + bc  # 马脚位置
                     if self.in_bounds(lr, lc) and self.board[lr][lc] is None:
                         return True
@@ -666,8 +677,8 @@ class Game4P:
         """对中立单位的走法进行评分，分值越高越好"""
         # ---- 0. 生死线：走子后帅不能处于危险中 ----
         marshal_in_danger_after = self._would_move_leave_marshal_in_check(fr, fc, tr, tc)
-        if marshal_in_danger_after and self._find_king(NEUTRAL) is None:
-            return -10000  # 帅没了，彻底完了
+        if marshal_in_danger_after:
+            return -10000  # 任何导致帅被将杀的走法都直接否决
 
         score = 0
         target = self.board[tr][tc]
@@ -730,21 +741,22 @@ class Game4P:
                     if tr != cr and tc != cc:
                         score += 200
                 elif was_between and not now_between:
-                    # 移走了炮和帅之间的屏障
+                    # 移走了炮和帅之间的棋子
+                    # between是移走前的棋子数，包含当前棋子
                     if between <= 1:
-                        score -= 400  # 直接暴露给炮
+                        score += 400  # 移走后中间0子，炮无法吃帅 -> 安全
                     elif between == 2:
-                        score -= 200
+                        score -= 200  # 移走后中间还有1子，炮仍可吃帅 -> 危险
                     else:
-                        score -= 80
+                        score += 80   # 移走后中间≥2子，炮无法吃 -> 安全
                 elif not was_between and now_between and self.board[tr][tc] is None:
-                    # 主动挡在炮和帅之间（建立屏障）
+                    # 棋子进入炮和帅之间的直线
                     if between == 0:
-                        score += 500  # 建立第一道屏障
+                        score -= 500  # 进入后成为炮架，炮可直接吃帅 -> 危险
                     elif between == 1:
-                        score += 250
+                        score += 400  # 进入后中间2子，炮无法吃帅 -> 安全
                     else:
-                        score += 100
+                        score -= 100  # 进入后中间≥3子，需要更多棋子挡
                 elif was_between and now_between and self.board[tr][tc] is None:
                     # 在屏障内平移，没有离开
                     score += 20
@@ -841,11 +853,6 @@ class Game4P:
             new_ed = abs(tr - enemy[0]) + abs(tc - enemy[1])
             if new_ed < old_ed:
                 score += 15
-
-        # ---- 6. 送将重罚（但保留区分度） ----
-        if marshal_in_danger_after:
-            # 保留吃子、堵炮、逃跑等救驾加分，然后整体扣分
-            score -= 10000
 
         return score
 
@@ -1166,7 +1173,7 @@ class Game4P:
 
     def is_same_team(self, c1, c2):
         """组队模式下判断是否同一队"""
-        if self.mode != "team" or not self.teams:
+        if self.mode not in ("team", "team_stratagem") or not self.teams:
             return False
         tid1 = self.teams.get(c1, c1)
         tid2 = self.teams.get(c2, c2)

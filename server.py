@@ -6,6 +6,7 @@ import uuid
 import socket
 import random
 import traceback
+import os
 import concurrent.futures
 from aiohttp import web
 
@@ -65,9 +66,12 @@ class Player:
 
 
 class Room:
-    def __init__(self, rid, mode, creator):
+    def __init__(self, rid, mode, creator, name="", password=""):
         self.id = rid
         self.mode = mode
+        self.name = name or f"房间 {rid}"
+        self.password = password
+        self.created_at = time.time()
         self.players = [creator]
         self.game = None
         self.running = False
@@ -129,7 +133,9 @@ class Room:
     def to_dict(self):
         return {
             "id": self.id,
+            "name": self.name,
             "mode": self.mode,
+            "has_password": bool(self.password),
             "players": [{"id": p.id, "name": p.name, "ready": p.color is not None,
                          "is_ai": p.is_ai, "seat": p.seat}
                         for p in self.players],
@@ -140,6 +146,8 @@ class Room:
 
 
 class RoomManager:
+    USERS_FILE = os.path.join(os.path.dirname(__file__), "users.json")
+
     def __init__(self):
         self.rooms = {}
         self.player_rooms = {}  # pid -> room_id
@@ -147,6 +155,22 @@ class RoomManager:
         self.connections = {}   # pid -> WebSocketResponse (for global broadcast)
         self.registered_users = {}  # name -> password (已注册的账户)
         self.ai_counter = 0
+        self._load_users()
+
+    def _load_users(self):
+        try:
+            if os.path.exists(self.USERS_FILE):
+                with open(self.USERS_FILE, "r", encoding="utf-8") as f:
+                    self.registered_users = json.load(f)
+        except Exception as e:
+            print(f"[WARN] 加载用户数据失败: {e}")
+
+    def _save_users(self):
+        try:
+            with open(self.USERS_FILE, "w", encoding="utf-8") as f:
+                json.dump(self.registered_users, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WARN] 保存用户数据失败: {e}")
 
     def add_player(self, player, ws):
         """注册一个新玩家"""
@@ -157,9 +181,11 @@ class RoomManager:
     def get_player(self, pid):
         return self.players.get(pid)
 
-    def create_room(self, mode, player):
+    def create_room(self, mode, player, name="", password=""):
+        if len(self.rooms) >= 10:
+            return None
         rid = uuid.uuid4().hex[:6]
-        room = Room(rid, mode, player)
+        room = Room(rid, mode, player, name=name, password=password)
         self.rooms[rid] = room
         self.player_rooms[player.id] = rid
         player.seat = 0  # 创建者固定坐 0 号位
@@ -602,7 +628,9 @@ async def handle_message(ws, data, manager):
                 return
         else:
             manager.registered_users[username] = password
-        # 检查是否断线重连
+            manager._save_users()
+
+        # 先检查是否断线重连
         existing = manager.get_disconnected_player(username)
         if existing:
             room = manager.get_player_room(existing.id)
@@ -613,7 +641,7 @@ async def handle_message(ws, data, manager):
                 await ws.send_json({"type": "login_ok", "user_id": existing.id, "name": data["username"]})
                 if room.running:
                     game = room.game
-                    await ws.send_json({
+                    msg = {
                         "type": "game_start",
                         "your_color": existing.color,
                         "turn_order": game.turn_order,
@@ -622,8 +650,12 @@ async def handle_message(ws, data, manager):
                         "turn": game.turn,
                         "players": [{"id": pl.id, "name": pl.name, "color": pl.color}
                                     for pl in room.players],
-                        "color_teams": game.teams if room.mode == "team" else {},
-                    })
+                        "color_teams": game.teams if room.mode in ("team", "team_stratagem") else {},
+                    }
+                    if room.mode == "team_stratagem":
+                        msg["stratagems"] = dict(room.stratagems)
+                        msg["stratagem_used"] = dict(room.stratagem_used)
+                    await ws.send_json(msg)
                 elif room.ally_phase:
                     # 结盟阶段
                     await ws.send_json({"type": "room_joined", "room": room.to_dict()})
@@ -652,6 +684,23 @@ async def handle_message(ws, data, manager):
             manager.connections.pop(existing.id, None)
             manager.player_rooms.pop(existing.id, None)
 
+        # 检查是否已在线且有活跃连接（同一用户名重复登录 → 踢掉旧连接）
+        for pid, p in list(manager.players.items()):
+            if p.name == username and p.id != data.get("user_id"):
+                if p.ws is not None and not p.ws.closed:
+                    old_ws = p.ws
+                    room = manager.get_player_room(pid)
+                    if room:
+                        manager.leave_room(pid)
+                    manager.players.pop(pid, None)
+                    manager.connections.pop(pid, None)
+                    manager.player_rooms.pop(pid, None)
+                    try:
+                        await old_ws.close()
+                    except Exception:
+                        pass
+                break
+
         pid = uuid.uuid4().hex[:8]
         player = Player(pid, username, password, ws)
         manager.add_player(player, ws)
@@ -667,8 +716,18 @@ async def handle_message(ws, data, manager):
         if not player_obj:
             await ws.send_json({"type": "error", "message": "未登录"})
             return
+        if len(manager.rooms) >= 10:
+            await ws.send_json({"type": "error", "message": "房间已满（最多10个）"})
+            return
         manager.leave_room(player_obj.id)
-        room = manager.create_room(data.get("mode", "ffa"), player_obj)
+        room = manager.create_room(
+            data.get("mode", "ffa"), player_obj,
+            name=data.get("room_name", ""),
+            password=data.get("room_password", ""),
+        )
+        if not room:
+            await ws.send_json({"type": "error", "message": "房间已满（最多10个）"})
+            return
         await ws.send_json({"type": "room_joined", "room": room.to_dict()})
         await _update_room_lobby(manager)
 
@@ -678,9 +737,15 @@ async def handle_message(ws, data, manager):
         if not player_obj:
             await ws.send_json({"type": "error", "message": "玩家不存在"})
             return
+        room = manager.get_room(rid)
+        if not room:
+            await ws.send_json({"type": "error", "message": "房间不存在"})
+            return
+        if room.password and data.get("password", "") != room.password:
+            await ws.send_json({"type": "error", "message": "密码错误"})
+            return
         manager.leave_room(player_obj.id)
         if manager.join_room(rid, player_obj):
-            room = manager.get_room(rid)
             await ws.send_json({"type": "room_joined", "room": room.to_dict()})
             # 直接通知其他房间成员
             for p in room.players:
@@ -1479,6 +1544,29 @@ async def _start_game(room, manager):
     _start_turn_timer(room, manager)
 
 
+async def _cleanup_stale_rooms(manager):
+    """后台任务：清理超过10分钟未开始的房间"""
+    while True:
+        await asyncio.sleep(30)
+        now = time.time()
+        for rid, room in list(manager.rooms.items()):
+            if room.running or room.created_at is None:
+                continue
+            if now - room.created_at > 600:
+                for p in room.players:
+                    if p.ws is not None and not p.ws.closed:
+                        try:
+                            await p.ws.send_json({
+                                "type": "room_dismissed",
+                                "reason": "房间超过10分钟未开始，已自动解散",
+                            })
+                        except Exception:
+                            pass
+                del manager.rooms[rid]
+                for p in room.players:
+                    manager.player_rooms[p.id] = None
+
+
 async def _update_room_lobby(manager):
     """通知所有连接的客户端刷新房间列表"""
     payload = json.dumps({"type": "rooms_list", "rooms": manager.list_rooms()})
@@ -1594,6 +1682,11 @@ def main():
     # 启动 AI 进程池（自动匹配 CPU 核心数）
     global _ai_executor
     _ai_executor = concurrent.futures.ProcessPoolExecutor(max_workers=4)
+
+    # 启动房间清理后台任务
+    async def _start_cleanup(app):
+        asyncio.create_task(_cleanup_stale_rooms(app["manager"]))
+    app.on_startup.append(_start_cleanup)
 
     print("=" * 50)
     print("  四国象棋 服务器已启动")

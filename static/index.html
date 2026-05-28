@@ -84,6 +84,38 @@
       </div>
     </div>
 
+  <!-- 创建房间弹窗 -->
+  <div id="create-room-modal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="modal-invite-text">🏯 创建房间</div>
+      <div style="margin:16px 0;text-align:left">
+        <label style="color:#b8956a;font-size:13px;display:block;margin-bottom:4px">房间名称</label>
+        <input id="create-room-name" type="text" placeholder="我的房间" maxlength="20" style="display:block;width:100%;padding:10px 14px;font-size:15px;border:2px solid #6b4c2a;border-radius:8px;background:#4a2e1b;color:#e8d5b7;outline:none;margin-bottom:12px">
+        <label style="color:#b8956a;font-size:13px;display:block;margin-bottom:4px">密码（可选）</label>
+        <input id="create-room-pwd" type="password" placeholder="留空则无密码" maxlength="20" style="display:block;width:100%;padding:10px 14px;font-size:15px;border:2px solid #6b4c2a;border-radius:8px;background:#4a2e1b;color:#e8d5b7;outline:none">
+      </div>
+      <div class="modal-buttons">
+        <button class="ally-btn ally-btn-accept" onclick="doCreateRoom()" style="padding:10px 32px;font-size:16px;border-radius:8px">创建</button>
+        <button class="ally-btn ally-btn-decline" onclick="closeCreateRoomModal()" style="padding:10px 32px;font-size:16px;border-radius:8px">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 输入房间密码弹窗 -->
+  <div id="join-password-modal" class="modal-overlay" style="display:none">
+    <div class="modal-box">
+      <div class="modal-invite-text">🔒 需要密码</div>
+      <div class="modal-hint" id="join-pwd-hint">该房间需要密码才能加入</div>
+      <div style="margin:0 auto 16px;max-width:260px">
+        <input id="join-pwd-input" type="password" placeholder="输入密码" maxlength="20" style="display:block;width:100%;padding:10px 14px;font-size:15px;border:2px solid #6b4c2a;border-radius:8px;background:#4a2e1b;color:#e8d5b7;outline:none">
+      </div>
+      <div class="modal-buttons">
+        <button class="ally-btn ally-btn-accept" onclick="doJoinWithPassword()" style="padding:10px 32px;font-size:16px;border-radius:8px">加入</button>
+        <button class="ally-btn ally-btn-decline" onclick="closeJoinPasswordModal()" style="padding:10px 32px;font-size:16px;border-radius:8px">取消</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 游戏 -->
   <div id="page-game" class="page" style="display:none">
     <div class="game-header">
@@ -149,6 +181,6 @@
   <!-- 锦囊已使用通知 -->
   <div id="stratagem-notify" class="board-popup-tr" style="display:none;pointer-events:none"></div>
 
-<script src="/static/script.js?v=30"></script>
+<script src="/static/script.js?v=35"></script>
 </body>
 </html>

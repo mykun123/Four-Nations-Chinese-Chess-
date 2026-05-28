@@ -498,14 +498,9 @@ function handleMessage(msg) {
 
     case "stratagem_used":
       stratagemUsed[msg.color] = true;
-      // 更新棋盘
+      // 替换整个棋盘状态（避免遗留旧位置的残影棋子）
       if (msg.board) {
-        for (const key in msg.board) {
-          const parts = key.split(",");
-          const r = parseInt(parts[0]), c = parseInt(parts[1]);
-          gameState[key] = msg.board[key];
-          gameState[`${r},${c}`] = msg.board[key];
-        }
+        gameState = msg.board;
       }
       drawBoard();
       // 显示通知
@@ -590,12 +585,51 @@ function handleMessage(msg) {
 
 // ====== 大厅 ======
 function createRoom() {
-  const mode = document.getElementById("room-mode").value;
-  ws.send(JSON.stringify({type: "create_room", user_id: userId, mode}));
+  // 显示创建房间弹窗
+  document.getElementById("create-room-name").value = "";
+  document.getElementById("create-room-pwd").value = "";
+  document.getElementById("create-room-modal").style.display = "flex";
 }
 
-function joinRoom(rid) {
-  ws.send(JSON.stringify({type: "join_room", user_id: userId, room_id: rid}));
+function closeCreateRoomModal() {
+  document.getElementById("create-room-modal").style.display = "none";
+}
+
+function doCreateRoom() {
+  const mode = document.getElementById("room-mode").value;
+  const name = document.getElementById("create-room-name").value.trim();
+  const pwd = document.getElementById("create-room-pwd").value;
+  ws.send(JSON.stringify({
+    type: "create_room", user_id: userId, mode,
+    room_name: name, room_password: pwd,
+  }));
+  closeCreateRoomModal();
+}
+
+let pendingJoinRoomId = null;
+
+function joinRoom(rid, hasPassword) {
+  if (hasPassword) {
+    pendingJoinRoomId = rid;
+    document.getElementById("join-pwd-input").value = "";
+    document.getElementById("join-pwd-hint").textContent = "该房间需要密码才能加入";
+    document.getElementById("join-password-modal").style.display = "flex";
+    return;
+  }
+  ws.send(JSON.stringify({type: "join_room", user_id: userId, room_id: rid, password: ""}));
+}
+
+function closeJoinPasswordModal() {
+  document.getElementById("join-password-modal").style.display = "none";
+  pendingJoinRoomId = null;
+}
+
+function doJoinWithPassword() {
+  const pwd = document.getElementById("join-pwd-input").value;
+  if (pendingJoinRoomId) {
+    ws.send(JSON.stringify({type: "join_room", user_id: userId, room_id: pendingJoinRoomId, password: pwd}));
+  }
+  closeJoinPasswordModal();
 }
 
 function refreshRoomList() {
@@ -611,9 +645,9 @@ function renderRoomList(rooms) {
   el.innerHTML = rooms.map(r => `
     <div class="room-item">
       <span class="room-mode">${r.mode === "ffa" ? "自由" : r.mode === "team_stratagem" ? "锦囊" : "组队"}</span>
-      <span style="flex:1;font-size:13px;color:#b8956a;padding:0 8px">房间 ${r.id}</span>
+      <span style="flex:1;font-size:13px;color:#b8956a;padding:0 8px">${r.name || ('房间 '+r.id)} ${r.has_password ? '🔒' : ''}</span>
       <span class="room-players">${r.count}/4 人</span>
-      <button onclick="joinRoom('${r.id}')">加入</button>
+      <button onclick="joinRoom('${r.id}',${!!r.has_password})">加入</button>
     </div>
   `).join("");
 }
@@ -1559,7 +1593,7 @@ function hideInviteModal() {
     }
     // 在用户手势内创建 Audio 元素，确保后续可播放
     if (!bgmAudio) {
-      bgmAudio = new Audio("/music/" + encodeURIComponent("三国恋-Tank#8V9K.mp3"));
+      bgmAudio = new Audio("/music/123.mp3");
       bgmAudio.loop = true;
       bgmAudio.volume = 0.18;
     }
